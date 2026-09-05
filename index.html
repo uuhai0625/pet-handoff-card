@@ -45,7 +45,7 @@
   }
   section.card h2 { margin: 0 0 4px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
   section.card .desc { color: var(--muted); font-size: .85rem; margin: 0 0 14px; }
-  .badge { display: inline-block; font-size: .7rem; padding: 2px 8px; border-radius: 999px; background: #eee; color: var(--muted); font-weight: bold; }
+  .badge { display: inline-block; font-size: .7rem; padding: 2px 8px; border-radius: 999px; background: #eee; color: #55493d; font-weight: bold; }
   .badge.pro { background: #fff1cc; color: #8a6100; }
 
   label.field { display: block; margin-bottom: 12px; }
@@ -99,17 +99,19 @@
     width: 91mm; min-height: 55mm; background: #fff; border-radius: 6px; border: 1px solid #ccc;
     padding: 10px 12px; font-size: 9.5px; position: relative; box-shadow: 0 2px 6px rgba(0,0,0,.1);
   }
+  .out-card .card-photo { float: right; width: 34px; height: 34px; object-fit: cover; border-radius: 50%; border: 1px solid var(--border); margin-left: 6px; }
   .out-card .pet-name { font-size: 15px; font-weight: bold; color: var(--accent-dark); }
   .out-card .pet-sub { color: #666; font-size: 9px; margin-bottom: 4px; }
   .out-card table { width: 100%; border-collapse: collapse; font-size: 9px; }
   .out-card table td { padding: 1.5px 0; vertical-align: top; }
-  .out-card table td.k { color: #888; width: 32%; white-space: nowrap; }
+  .out-card table td.k { color: #5a5a5a; width: 32%; white-space: nowrap; }
   .out-card .warn { background: #fff3cd; color: #7a5b00; padding: 3px 5px; border-radius: 4px; margin-top: 4px; font-size: 8.5px; font-weight: bold; }
 
   .out-label {
     width: 105mm; min-height: 148mm; background: #fff8f0; border: 3px solid var(--accent-dark); border-radius: 10px;
     padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,.1);
   }
+  .out-label .label-photo { display: block; width: 72px; height: 72px; object-fit: cover; border-radius: 50%; border: 2px solid var(--border); margin: 0 auto 6px; }
   .out-label .pet-name { font-size: 26px; font-weight: bold; text-align: center; color: var(--accent-dark); }
   .out-label .pet-sub { text-align: center; color: #666; font-size: 12px; margin-bottom: 10px; }
   .out-label .attn { background: #fdecea; color: #a13d2e; font-weight: bold; text-align: center; padding: 6px; border-radius: 8px; font-size: 13px; margin: 6px 0; }
@@ -130,9 +132,11 @@
   footer .updated { font-weight: bold; }
 
   @media print {
+    @page { size: A4; margin: 8mm; }
     body * { visibility: hidden; }
     #printArea, #printArea * { visibility: visible; }
     #printArea { position: absolute; left: 0; top: 0; }
+    #printArea .out-sheet { width: auto; min-height: 0; padding: 0; border: none; box-shadow: none; }
     body { background: #fff; }
   }
 </style>
@@ -239,7 +243,15 @@
     return pets[0];
   }
 
-  function esc(s) { return (s || "").toString().replace(/[<>&]/g, function (c) { return { "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]; }); }
+  function esc(s) { return (s || "").toString().replace(/[<>&"']/g, function (c) { return { "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+
+  function makeKeyboardClickable(el) {
+    el.tabIndex = 0;
+    el.setAttribute("role", "button");
+    el.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); el.click(); }
+    });
+  }
 
   function renderTabs() {
     var el = document.getElementById("petTabs");
@@ -249,6 +261,7 @@
       tab.className = "pet-tab" + (p.id === activePetId ? " active" : "");
       tab.textContent = p.name || ("ペット" + (i + 1));
       tab.addEventListener("click", function () { activePetId = p.id; renderTabs(); renderForm(); renderPreview(); });
+      makeKeyboardClickable(tab);
       el.appendChild(tab);
     });
     if (pets.length < MAX_PETS) {
@@ -258,6 +271,7 @@
       add.addEventListener("click", function () {
         var np = newPet(); pets.push(np); activePetId = np.id; renderTabs(); renderForm(); renderPreview();
       });
+      makeKeyboardClickable(add);
       el.appendChild(add);
     } else if (EDITION !== "full") {
       var lock = document.createElement("div");
@@ -279,7 +293,17 @@
       return '<label><input type="checkbox" data-pkey="' + o[0] + '" ' + (p.personality[o[0]] ? "checked" : "") + '> ' + o[1] + '</label>';
     }).join("");
 
+    var photoHtml = "";
+    if (EDITION === "full") {
+      photoHtml =
+        '<label class="field"><span class="lbl">写真(任意、買い切り版限定機能)</span>' +
+        '<input type="file" id="f-photo" accept="image/*">' +
+        '</label>' +
+        (p.photo ? '<div style="margin:-6px 0 12px;"><img src="' + p.photo + '" alt="' + esc(p.name) + 'の写真" style="max-width:120px;max-height:120px;border-radius:8px;border:1px solid var(--border);"> <button type="button" class="btn-secondary" id="removePhotoBtn" style="vertical-align:top;">写真を削除</button></div>' : "");
+    }
+
     el.innerHTML =
+      photoHtml +
       '<div class="row3">' +
         field("種類", '<select id="f-species"><option value="dog"' + (p.species === "dog" ? " selected" : "") + '>犬</option><option value="cat"' + (p.species === "cat" ? " selected" : "") + '>猫</option><option value="other"' + (p.species === "other" ? " selected" : "") + '>その他</option></select>') +
         field("名前", '<input id="f-name" value="' + esc(p.name) + '" placeholder="例) ムギ">') +
@@ -348,6 +372,22 @@
       p.medications.push({ name: "", dose: "", time: "" });
       renderMedList();
     });
+
+    var photoInput = document.getElementById("f-photo");
+    if (photoInput) {
+      photoInput.addEventListener("change", function () {
+        var file = photoInput.files && photoInput.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function () { p.photo = reader.result; renderForm(); renderPreview(); };
+        reader.onerror = function () { alert("写真の読み込みに失敗しました。別の画像でお試しください。"); };
+        reader.readAsDataURL(file);
+      });
+    }
+    var removePhotoBtn = document.getElementById("removePhotoBtn");
+    if (removePhotoBtn) {
+      removePhotoBtn.addEventListener("click", function () { p.photo = ""; renderForm(); renderPreview(); });
+    }
   }
 
   function renderMedList() {
@@ -383,7 +423,9 @@
   function buildCardHtml(p) {
     var traits = personalityLabels(p).join("・");
     var meds = p.medications.filter(function (m) { return m.name; }).map(function (m) { return m.name + (m.dose ? "(" + m.dose + ")" : "") + (m.time ? " " + m.time : ""); }).join(" / ");
+    var photoImg = p.photo ? '<img src="' + p.photo + '" alt="" class="card-photo">' : '';
     return '' +
+      photoImg +
       '<div class="pet-name">' + esc(p.name || "(名前未入力)") + '</div>' +
       '<div class="pet-sub">' + (p.species === "dog" ? "犬" : p.species === "cat" ? "猫" : "その他") + (p.breed ? "・" + esc(p.breed) : "") + (p.sex === "male" ? "・オス" : "・メス") + '</div>' +
       '<table>' +
@@ -399,7 +441,9 @@
 
   function buildLabelHtml(p) {
     var traits = personalityLabels(p).join("・");
+    var photoImg = p.photo ? '<img src="' + p.photo + '" alt="" class="label-photo">' : '';
     return '' +
+      photoImg +
       '<div class="pet-name">' + esc(p.name || "(名前未入力)") + '</div>' +
       '<div class="pet-sub">' + (p.species === "dog" ? "犬" : p.species === "cat" ? "猫" : "その他") + (p.breed ? "・" + esc(p.breed) : "") + '</div>' +
       (p.allergies ? '<div class="attn">⚠ アレルギー: ' + esc(p.allergies) + '</div>' : '') +
@@ -454,6 +498,7 @@
   }
 
   Array.prototype.forEach.call(document.querySelectorAll(".format-tab"), function (tab) {
+    makeKeyboardClickable(tab);
     tab.addEventListener("click", function () {
       var fmt = tab.dataset.fmt;
       if (EDITION !== "full" && fmt !== "card") { alert("この出力形式は買い切り版で利用できます。"); return; }
@@ -483,16 +528,28 @@
   var loadBtn = document.getElementById("loadBtn");
   if (saveBtn) {
     saveBtn.addEventListener("click", function () {
-      localStorage.setItem(SAVE_KEY, JSON.stringify(pets));
-      document.getElementById("saveStatus").textContent = "保存しました(" + new Date().toLocaleString() + ")";
+      try {
+        localStorage.setItem(SAVE_KEY, JSON.stringify(pets));
+        document.getElementById("saveStatus").textContent = "保存しました(" + new Date().toLocaleString() + ")";
+      } catch (e) {
+        document.getElementById("saveStatus").textContent = "保存に失敗しました(ブラウザの保存容量やプライベートブラウジング設定をご確認ください)。";
+      }
     });
     loadBtn.addEventListener("click", function () {
-      var raw = localStorage.getItem(SAVE_KEY);
+      var raw;
+      try { raw = localStorage.getItem(SAVE_KEY); } catch (e) { document.getElementById("saveStatus").textContent = "読み込みに失敗しました。"; return; }
       if (!raw) { document.getElementById("saveStatus").textContent = "保存されたデータがありません。"; return; }
       try {
         var loaded = JSON.parse(raw);
         if (loaded && loaded.length) {
-          pets = loaded; activePetId = pets[0].id;
+          var normalized = loaded.map(function (p) {
+            var base = newPet();
+            for (var k in base) { if (p && p[k] !== undefined) base[k] = p[k]; }
+            if (!base.personality || typeof base.personality !== "object") base.personality = {};
+            if (!base.medications || !base.medications.length) base.medications = [{ name: "", dose: "", time: "" }];
+            return base;
+          });
+          pets = normalized; activePetId = pets[0].id;
           renderTabs(); renderForm(); renderPreview();
           document.getElementById("saveStatus").textContent = "読み込みました。";
         }
