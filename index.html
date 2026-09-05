@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ペット引継ぎカード作成機</title>
+<style>
+  :root {
+    --bg: #f8f5f1;
+    --panel: #ffffff;
+    --border: #e8ddd0;
+    --text: #3a2f26;
+    --muted: #8a7c6c;
+    --accent: #d97a3f;
+    --accent-dark: #b5602a;
+    --ok-bg: #fdf0e6;
+    --locked: #b3a596;
+    --best: #fff4d6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+  }
+  header {
+    background: linear-gradient(135deg, #e0824a, #b5602a);
+    color: #fff;
+    padding: 32px 20px 26px;
+    text-align: center;
+  }
+  header h1 { margin: 0 0 8px; font-size: 1.6rem; }
+  header p { margin: 0; opacity: .92; font-size: .95rem; }
+  .disclaimer {
+    max-width: 780px; margin: 18px auto 0;
+    background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.4);
+    border-radius: 8px; padding: 10px 14px; font-size: .82rem;
+  }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+  section.card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; margin-bottom: 20px;
+  }
+  section.card h2 { margin: 0 0 4px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+  section.card .desc { color: var(--muted); font-size: .85rem; margin: 0 0 14px; }
+  .badge { display: inline-block; font-size: .7rem; padding: 2px 8px; border-radius: 999px; background: #eee; color: var(--muted); font-weight: bold; }
+  .badge.pro { background: #fff1cc; color: #8a6100; }
+
+  label.field { display: block; margin-bottom: 12px; }
+  label.field .lbl { font-size: .83rem; font-weight: bold; }
+  label.field input, label.field select, label.field textarea {
+    width: 100%; margin-top: 5px; padding: 8px 10px;
+    border: 1px solid var(--border); border-radius: 8px;
+    font-size: .92rem; font-family: inherit; background: #fffdfb;
+  }
+  label.field textarea { resize: vertical; min-height: 46px; }
+  .row2 { display: flex; gap: 12px; }
+  .row2 > * { flex: 1; }
+  .row3 { display: flex; gap: 12px; }
+  .row3 > * { flex: 1; }
+
+  .chk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); gap: 6px; margin: 6px 0 12px; }
+  .chk-grid label { display: flex; align-items: center; gap: 6px; font-size: .84rem; background: #fffdfb; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
+  .chk-grid input { margin: 0; }
+
+  .med-row { display: flex; gap: 8px; margin-bottom: 6px; align-items: center; }
+  .med-row input { flex: 1; padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: .85rem; }
+  .btn-secondary {
+    background: #fff; border: 1px solid var(--border); color: var(--text);
+    padding: 8px 14px; border-radius: 8px; font-size: .82rem; cursor: pointer;
+  }
+  .btn-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .buy-btn {
+    display: inline-block; margin-top: 10px; background: var(--accent); color: #fff; font-weight: bold;
+    padding: 10px 22px; border-radius: 999px; text-decoration: none; font-size: .9rem;
+  }
+  .buy-btn:hover { background: var(--accent-dark); }
+
+  .pet-tab-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .pet-tab { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border); background: #fffdfb; cursor: pointer; font-size: .85rem; }
+  .pet-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .locked-panel {
+    border: 1px dashed var(--locked); border-radius: 10px; padding: 18px; text-align: center; color: var(--muted); background: #fdfaf7;
+  }
+  .locked-panel .feat-list { text-align: left; max-width: 460px; margin: 12px auto; font-size: .85rem; padding-left: 1.2em; }
+
+  .format-tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .format-tab { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: #fffdfb; cursor: pointer; font-size: .85rem; }
+  .format-tab.active { background: var(--ok-bg); border-color: var(--accent); font-weight: bold; }
+  .format-tab.locked { opacity: .5; cursor: not-allowed; }
+
+  /* ===== 出力プレビュー ===== */
+  .preview-wrap { background: #efe9e2; border-radius: 10px; padding: 20px; display: flex; justify-content: center; overflow-x: auto; }
+
+  .out-card {
+    width: 91mm; min-height: 55mm; background: #fff; border-radius: 6px; border: 1px solid #ccc;
+    padding: 10px 12px; font-size: 9.5px; position: relative; box-shadow: 0 2px 6px rgba(0,0,0,.1);
+  }
+  .out-card .pet-name { font-size: 15px; font-weight: bold; color: var(--accent-dark); }
+  .out-card .pet-sub { color: #666; font-size: 9px; margin-bottom: 4px; }
+  .out-card table { width: 100%; border-collapse: collapse; font-size: 9px; }
+  .out-card table td { padding: 1.5px 0; vertical-align: top; }
+  .out-card table td.k { color: #888; width: 32%; white-space: nowrap; }
+  .out-card .warn { background: #fff3cd; color: #7a5b00; padding: 3px 5px; border-radius: 4px; margin-top: 4px; font-size: 8.5px; font-weight: bold; }
+
+  .out-label {
+    width: 105mm; min-height: 148mm; background: #fff8f0; border: 3px solid var(--accent-dark); border-radius: 10px;
+    padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,.1);
+  }
+  .out-label .pet-name { font-size: 26px; font-weight: bold; text-align: center; color: var(--accent-dark); }
+  .out-label .pet-sub { text-align: center; color: #666; font-size: 12px; margin-bottom: 10px; }
+  .out-label .attn { background: #fdecea; color: #a13d2e; font-weight: bold; text-align: center; padding: 6px; border-radius: 8px; font-size: 13px; margin: 6px 0; }
+  .out-label dl { font-size: 12px; }
+  .out-label dt { font-weight: bold; color: #555; margin-top: 6px; }
+  .out-label dd { margin: 0 0 2px; }
+
+  .out-sheet { width: 210mm; min-height: 297mm; background: #fff; border: 1px solid #ccc; padding: 16mm 14mm; box-shadow: 0 2px 6px rgba(0,0,0,.1); }
+  .out-sheet h3 { border-bottom: 2px solid var(--accent); padding-bottom: 4px; font-size: 1.1rem; }
+  .out-sheet table.info { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+  .out-sheet table.info td { border: 1px solid #ddd; padding: 6px 8px; font-size: .85rem; }
+  .out-sheet table.info td.k { background: #faf6f2; width: 22%; font-weight: bold; color: #555; }
+  .out-sheet table.med { width: 100%; border-collapse: collapse; margin-top: 6px; }
+  .out-sheet table.med th, .out-sheet table.med td { border: 1px solid #ddd; padding: 6px 8px; font-size: .82rem; text-align: left; }
+  .out-sheet table.med th { background: #faf6f2; }
+
+  footer { max-width: 860px; margin: 0 auto; padding: 0 16px 40px; font-size: .76rem; color: var(--muted); }
+  footer .updated { font-weight: bold; }
+
+  @media print {
+    body * { visibility: hidden; }
+    #printArea, #printArea * { visibility: visible; }
+    #printArea { position: absolute; left: 0; top: 0; }
+    body { background: #fff; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ペット引継ぎカード作成機</h1>
+  <p>旅行の一時預け・急な入院・災害時の同行避難まで、ペットの情報を1回入力してカード・ラベル・引継ぎ票にまとめて出力</p>
+  <div class="disclaimer">
+    ⚠️ 本ツールは飼い主自身が入力した情報を整形して出力するものです。医療情報の正確性・最新性は必ずご自身で確認してください。動物病院の診断・処方に代わるものではありません。
+  </div>
+</header>
+
+<main>
+
+  <section class="card">
+    <h2>① ペットの情報を入力 <span class="badge" id="edition-badge">FREE版: 1匹まで</span></h2>
+    <p class="desc">買い切り版では複数匹を登録できます。</p>
+
+    <div class="pet-tab-row" id="petTabs"></div>
+
+    <div id="petForm"></div>
+  </section>
+
+  <section class="card" id="format-section">
+    <h2>② 出力形式を選ぶ</h2>
+    <div class="format-tabs" id="formatTabs">
+      <div class="format-tab active" data-fmt="card">財布サイズカード</div>
+      <div class="format-tab" data-fmt="label" id="tab-label">ケージ・キャリー用ラベル</div>
+      <div class="format-tab" data-fmt="sheet" id="tab-sheet">預け先引継ぎ票</div>
+    </div>
+    <div class="preview-wrap" id="previewWrap"></div>
+    <div class="btn-row">
+      <button class="btn-secondary" id="printBtn">🖨️ この形式を印刷</button>
+    </div>
+  </section>
+
+  <section class="card" id="pro-section">
+    <h2>③ 複数匹対応・全形式出力 <span class="badge pro">買い切り版</span></h2>
+    <div class="locked-panel">
+      <p>買い切り版(ダウンロード購入)では、以下が使えます:</p>
+      <ul class="feat-list">
+        <li>複数匹を登録して切り替え表示(多頭飼いに対応)</li>
+        <li>ケージ・キャリー用ラベル、預け先引継ぎ票(投薬スケジュール表付き)も出力可能</li>
+        <li>入力内容をこのブラウザに保存し、次回から呼び出して再印刷</li>
+        <li>写真の埋め込み(カード・ラベルに表示)</li>
+      </ul>
+      <a class="buy-btn" href="#" id="buyLink" target="_blank" rel="noopener">買い切り版を見る(BOOTH)</a>
+    </div>
+  </section>
+
+  <section class="card" id="save-section" style="display:none;">
+    <h2>④ 入力内容の保存</h2>
+    <div class="btn-row" style="margin-top:0;">
+      <button class="btn-secondary" id="saveBtn">現在の内容をこのブラウザに保存</button>
+      <button class="btn-secondary" id="loadBtn">保存済みの内容を読み込む</button>
+    </div>
+    <p class="desc" id="saveStatus" style="margin:8px 0 0;"></p>
+  </section>
+
+</main>
+
+<footer>
+  <p><span class="updated">最終更新: 2026年9月時点の環境省ガイドライン・自治体防災手帳の記載項目を参考に作成。</span></p>
+  <p>本ツールは完全にブラウザ内で動作し、入力したペットの情報はどこにも送信されません(開発者ツールのネットワークタブで通信が発生しないことをご確認いただけます)。写真・医療情報を含め、全てお使いの端末内のみに保存されます。</p>
+</footer>
+
+<div id="printArea"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var EDITION = "free"; // "full" で買い切り完全版
+  var MAX_PETS = EDITION === "full" ? 8 : 1;
+
+  var PERSONALITY_OPTS = [
+    ["shy", "人見知り"], ["bites", "咬み癖あり"], ["escapes", "脱走注意"],
+    ["loud", "大きな音が苦手"], ["strangers", "他の動物が苦手"], ["calm", "人懐っこい"]
+  ];
+
+  function newPet() {
+    return {
+      id: Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+      species: "dog", breed: "", name: "", sex: "male", neutered: false,
+      birth: "", weight: "", colorFeatures: "",
+      personality: {}, personalityNote: "",
+      conditions: "", allergies: "", medications: [{ name: "", dose: "", time: "" }],
+      vetName: "", vetPhone: "",
+      foodBrand: "", foodAmount: "",
+      microchip: "", license: "", vaccine: "",
+      ownerName: "", ownerPhone: "", secondaryName: "", secondaryPhone: "", boardingPlace: "",
+      photo: ""
+    };
+  }
+
+  var pets = [newPet()];
+  var activePetId = pets[0].id;
+  var activeFormat = "card";
+
+  function getActivePet() {
+    for (var i = 0; i < pets.length; i++) if (pets[i].id === activePetId) return pets[i];
+    return pets[0];
+  }
+
+  function esc(s) { return (s || "").toString().replace(/[<>&]/g, function (c) { return { "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c]; }); }
+
+  function renderTabs() {
+    var el = document.getElementById("petTabs");
+    el.innerHTML = "";
+    pets.forEach(function (p, i) {
+      var tab = document.createElement("div");
+      tab.className = "pet-tab" + (p.id === activePetId ? " active" : "");
+      tab.textContent = p.name || ("ペット" + (i + 1));
+      tab.addEventListener("click", function () { activePetId = p.id; renderTabs(); renderForm(); renderPreview(); });
+      el.appendChild(tab);
+    });
+    if (pets.length < MAX_PETS) {
+      var add = document.createElement("div");
+      add.className = "pet-tab";
+      add.textContent = "+ ペットを追加";
+      add.addEventListener("click", function () {
+        var np = newPet(); pets.push(np); activePetId = np.id; renderTabs(); renderForm(); renderPreview();
+      });
+      el.appendChild(add);
+    } else if (EDITION !== "full") {
+      var lock = document.createElement("div");
+      lock.className = "pet-tab";
+      lock.style.opacity = ".5";
+      lock.textContent = "🔒 2匹目以降は買い切り版";
+      el.appendChild(lock);
+    }
+  }
+
+  function field(labelText, inputHtml) {
+    return '<label class="field"><span class="lbl">' + labelText + '</span>' + inputHtml + '</label>';
+  }
+
+  function renderForm() {
+    var p = getActivePet();
+    var el = document.getElementById("petForm");
+    var chkHtml = PERSONALITY_OPTS.map(function (o) {
+      return '<label><input type="checkbox" data-pkey="' + o[0] + '" ' + (p.personality[o[0]] ? "checked" : "") + '> ' + o[1] + '</label>';
+    }).join("");
+
+    el.innerHTML =
+      '<div class="row3">' +
+        field("種類", '<select id="f-species"><option value="dog"' + (p.species === "dog" ? " selected" : "") + '>犬</option><option value="cat"' + (p.species === "cat" ? " selected" : "") + '>猫</option><option value="other"' + (p.species === "other" ? " selected" : "") + '>その他</option></select>') +
+        field("名前", '<input id="f-name" value="' + esc(p.name) + '" placeholder="例) ムギ">') +
+        field("犬種・猫種", '<input id="f-breed" value="' + esc(p.breed) + '">') +
+      '</div>' +
+      '<div class="row3">' +
+        field("性別", '<select id="f-sex"><option value="male"' + (p.sex === "male" ? " selected" : "") + '>オス</option><option value="female"' + (p.sex === "female" ? " selected" : "") + '>メス</option></select>') +
+        field("去勢・避妊", '<select id="f-neutered"><option value="no"' + (!p.neutered ? " selected" : "") + '>未実施</option><option value="yes"' + (p.neutered ? " selected" : "") + '>実施済み</option></select>') +
+        field("体重(kg)", '<input id="f-weight" type="number" step="0.1" value="' + esc(p.weight) + '">') +
+      '</div>' +
+      field("毛色・特徴(見た目の特徴)", '<input id="f-colorFeatures" value="' + esc(p.colorFeatures) + '" placeholder="例) 茶白、左耳が垂れている">') +
+      '<div class="group-label" style="font-size:.78rem;color:var(--muted);margin:10px 0 4px;font-weight:bold;">性格・注意点</div>' +
+      '<div class="chk-grid">' + chkHtml + '</div>' +
+      field("その他の注意点(自由記述)", '<textarea id="f-personalityNote">' + esc(p.personalityNote) + '</textarea>') +
+      '<div class="row2">' +
+        field("持病", '<textarea id="f-conditions">' + esc(p.conditions) + '</textarea>') +
+        field("アレルギー", '<textarea id="f-allergies">' + esc(p.allergies) + '</textarea>') +
+      '</div>' +
+      '<div class="group-label" style="font-size:.78rem;color:var(--muted);margin:10px 0 4px;font-weight:bold;">投薬(お薬の名前・量・時間)</div>' +
+      '<div id="medList"></div>' +
+      '<button type="button" class="btn-secondary" id="addMedBtn" style="margin-bottom:12px;">+ 投薬を追加</button>' +
+      '<div class="row2">' +
+        field("かかりつけ動物病院", '<input id="f-vetName" value="' + esc(p.vetName) + '">') +
+        field("病院の電話番号", '<input id="f-vetPhone" value="' + esc(p.vetPhone) + '">') +
+      '</div>' +
+      '<div class="row2">' +
+        field("フード(銘柄・量)", '<input id="f-foodBrand" value="' + esc(p.foodBrand) + '" placeholder="例) ○○ドライフード">') +
+        field("給餌量・回数", '<input id="f-foodAmount" value="' + esc(p.foodAmount) + '" placeholder="例) 1日2回、各50g">') +
+      '</div>' +
+      '<div class="row3">' +
+        field("マイクロチップ番号", '<input id="f-microchip" value="' + esc(p.microchip) + '">') +
+        field("鑑札・登録番号", '<input id="f-license" value="' + esc(p.license) + '">') +
+        field("ワクチン接種歴", '<input id="f-vaccine" value="' + esc(p.vaccine) + '" placeholder="例) 2026年4月接種済み">') +
+      '</div>' +
+      '<div class="row2">' +
+        field("飼い主氏名・連絡先", '<input id="f-ownerName" value="' + esc(p.ownerName) + '" placeholder="氏名">') +
+        field("飼い主の電話番号", '<input id="f-ownerPhone" value="' + esc(p.ownerPhone) + '">') +
+      '</div>' +
+      '<div class="row2">' +
+        field("代理連絡先(氏名・電話)", '<input id="f-secondaryName" value="' + esc(p.secondaryName) + '" placeholder="例) 実家 母 090-xxxx-xxxx">') +
+        field("預け先候補", '<input id="f-boardingPlace" value="' + esc(p.boardingPlace) + '" placeholder="例) ○○ペットホテル">') +
+      '</div>';
+
+    Array.prototype.forEach.call(el.querySelectorAll("[id^=f-]"), function (input) {
+      var key = input.id.slice(2);
+      input.addEventListener("input", function () {
+        if (key === "neutered") p.neutered = input.value === "yes";
+        else p[key] = input.value;
+        if (key === "name") renderTabs();
+        renderPreview();
+      });
+      input.addEventListener("change", function () {
+        if (key === "neutered") { p.neutered = input.value === "yes"; renderPreview(); }
+      });
+    });
+
+    Array.prototype.forEach.call(el.querySelectorAll("[data-pkey]"), function (cb) {
+      cb.addEventListener("change", function () {
+        p.personality[cb.dataset.pkey] = cb.checked;
+        renderPreview();
+      });
+    });
+
+    renderMedList();
+    document.getElementById("addMedBtn").addEventListener("click", function () {
+      p.medications.push({ name: "", dose: "", time: "" });
+      renderMedList();
+    });
+  }
+
+  function renderMedList() {
+    var p = getActivePet();
+    var el = document.getElementById("medList");
+    el.innerHTML = "";
+    p.medications.forEach(function (m, i) {
+      var row = document.createElement("div");
+      row.className = "med-row";
+      row.innerHTML =
+        '<input placeholder="薬の名前" value="' + esc(m.name) + '" data-i="' + i + '" data-k="name">' +
+        '<input placeholder="量(例: 1錠)" value="' + esc(m.dose) + '" data-i="' + i + '" data-k="dose" style="max-width:110px;">' +
+        '<input placeholder="時間(例: 朝晩)" value="' + esc(m.time) + '" data-i="' + i + '" data-k="time" style="max-width:110px;">';
+      var delBtn = document.createElement("button");
+      delBtn.type = "button"; delBtn.className = "btn-secondary"; delBtn.textContent = "削除";
+      delBtn.style.padding = "6px 10px";
+      delBtn.addEventListener("click", function () { p.medications.splice(i, 1); if (!p.medications.length) p.medications.push({name:"",dose:"",time:""}); renderMedList(); renderPreview(); });
+      row.appendChild(delBtn);
+      el.appendChild(row);
+    });
+    Array.prototype.forEach.call(el.querySelectorAll("input"), function (inp) {
+      inp.addEventListener("input", function () {
+        p.medications[+inp.dataset.i][inp.dataset.k] = inp.value;
+        renderPreview();
+      });
+    });
+  }
+
+  function personalityLabels(p) {
+    return PERSONALITY_OPTS.filter(function (o) { return p.personality[o[0]]; }).map(function (o) { return o[1]; });
+  }
+
+  function buildCardHtml(p) {
+    var traits = personalityLabels(p).join("・");
+    var meds = p.medications.filter(function (m) { return m.name; }).map(function (m) { return m.name + (m.dose ? "(" + m.dose + ")" : "") + (m.time ? " " + m.time : ""); }).join(" / ");
+    return '' +
+      '<div class="pet-name">' + esc(p.name || "(名前未入力)") + '</div>' +
+      '<div class="pet-sub">' + (p.species === "dog" ? "犬" : p.species === "cat" ? "猫" : "その他") + (p.breed ? "・" + esc(p.breed) : "") + (p.sex === "male" ? "・オス" : "・メス") + '</div>' +
+      '<table>' +
+        '<tr><td class="k">性格</td><td>' + esc(traits || "-") + '</td></tr>' +
+        '<tr><td class="k">持病</td><td>' + esc(p.conditions || "特になし") + '</td></tr>' +
+        '<tr><td class="k">投薬</td><td>' + esc(meds || "なし") + '</td></tr>' +
+        '<tr><td class="k">病院</td><td>' + esc(p.vetName) + ' ' + esc(p.vetPhone) + '</td></tr>' +
+        '<tr><td class="k">飼い主</td><td>' + esc(p.ownerName) + ' ' + esc(p.ownerPhone) + '</td></tr>' +
+        '<tr><td class="k">代理連絡先</td><td>' + esc(p.secondaryName) + ' ' + esc(p.secondaryPhone) + '</td></tr>' +
+      '</table>' +
+      (p.allergies ? '<div class="warn">⚠ アレルギー: ' + esc(p.allergies) + '</div>' : '');
+  }
+
+  function buildLabelHtml(p) {
+    var traits = personalityLabels(p).join("・");
+    return '' +
+      '<div class="pet-name">' + esc(p.name || "(名前未入力)") + '</div>' +
+      '<div class="pet-sub">' + (p.species === "dog" ? "犬" : p.species === "cat" ? "猫" : "その他") + (p.breed ? "・" + esc(p.breed) : "") + '</div>' +
+      (p.allergies ? '<div class="attn">⚠ アレルギー: ' + esc(p.allergies) + '</div>' : '') +
+      (traits ? '<div class="attn">' + esc(traits) + '</div>' : '') +
+      '<dl>' +
+        '<dt>持病</dt><dd>' + esc(p.conditions || "特になし") + '</dd>' +
+        '<dt>かかりつけ病院</dt><dd>' + esc(p.vetName) + ' ' + esc(p.vetPhone) + '</dd>' +
+        '<dt>飼い主連絡先</dt><dd>' + esc(p.ownerName) + ' ' + esc(p.ownerPhone) + '</dd>' +
+        '<dt>代理連絡先</dt><dd>' + esc(p.secondaryName) + ' ' + esc(p.secondaryPhone) + '</dd>' +
+      '</dl>';
+  }
+
+  function buildSheetHtml(p) {
+    var traits = personalityLabels(p).join("・");
+    var medRows = p.medications.filter(function (m) { return m.name; }).map(function (m) {
+      return '<tr><td>' + esc(m.name) + '</td><td>' + esc(m.dose) + '</td><td>' + esc(m.time) + '</td></tr>';
+    }).join("");
+    if (!medRows) medRows = '<tr><td colspan="3">投薬なし</td></tr>';
+    return '' +
+      '<h3>ペット引継ぎ票</h3>' +
+      '<table class="info">' +
+        '<tr><td class="k">名前</td><td>' + esc(p.name) + '</td><td class="k">種類</td><td>' + (p.species === "dog" ? "犬" : p.species === "cat" ? "猫" : "その他") + (p.breed ? "(" + esc(p.breed) + ")" : "") + '</td></tr>' +
+        '<tr><td class="k">性別</td><td>' + (p.sex === "male" ? "オス" : "メス") + (p.neutered ? "(去勢・避妊済み)" : "") + '</td><td class="k">体重</td><td>' + esc(p.weight) + ' kg</td></tr>' +
+        '<tr><td class="k">性格・注意点</td><td colspan="3">' + esc(traits || "-") + (p.personalityNote ? " / " + esc(p.personalityNote) : "") + '</td></tr>' +
+        '<tr><td class="k">持病</td><td colspan="3">' + esc(p.conditions || "特になし") + '</td></tr>' +
+        '<tr><td class="k">アレルギー</td><td colspan="3">' + esc(p.allergies || "特になし") + '</td></tr>' +
+        '<tr><td class="k">フード</td><td colspan="3">' + esc(p.foodBrand) + '(' + esc(p.foodAmount) + ')</td></tr>' +
+        '<tr><td class="k">マイクロチップ</td><td>' + esc(p.microchip) + '</td><td class="k">鑑札番号</td><td>' + esc(p.license) + '</td></tr>' +
+        '<tr><td class="k">ワクチン</td><td colspan="3">' + esc(p.vaccine) + '</td></tr>' +
+        '<tr><td class="k">かかりつけ病院</td><td colspan="3">' + esc(p.vetName) + ' ' + esc(p.vetPhone) + '</td></tr>' +
+        '<tr><td class="k">飼い主</td><td colspan="3">' + esc(p.ownerName) + ' ' + esc(p.ownerPhone) + '</td></tr>' +
+        '<tr><td class="k">代理連絡先</td><td colspan="3">' + esc(p.secondaryName) + ' ' + esc(p.secondaryPhone) + '</td></tr>' +
+        '<tr><td class="k">預け先候補</td><td colspan="3">' + esc(p.boardingPlace) + '</td></tr>' +
+      '</table>' +
+      '<h3 style="font-size:1rem;">投薬スケジュール</h3>' +
+      '<table class="med"><tr><th>薬の名前</th><th>量</th><th>時間</th></tr>' + medRows + '</table>';
+  }
+
+  function renderPreview() {
+    var p = getActivePet();
+    var el = document.getElementById("previewWrap");
+    var html = "";
+    if (activeFormat === "card") {
+      html = '<div class="out-card">' + buildCardHtml(p) + '</div>';
+    } else if (activeFormat === "label") {
+      html = '<div class="out-label">' + buildLabelHtml(p) + '</div>';
+    } else {
+      html = '<div class="out-sheet">' + buildSheetHtml(p) + '</div>';
+    }
+    el.innerHTML = html;
+    document.getElementById("printArea").innerHTML = html;
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll(".format-tab"), function (tab) {
+    tab.addEventListener("click", function () {
+      var fmt = tab.dataset.fmt;
+      if (EDITION !== "full" && fmt !== "card") { alert("この出力形式は買い切り版で利用できます。"); return; }
+      activeFormat = fmt;
+      Array.prototype.forEach.call(document.querySelectorAll(".format-tab"), function (t) { t.classList.remove("active"); });
+      tab.classList.add("active");
+      renderPreview();
+    });
+  });
+
+  document.getElementById("printBtn").addEventListener("click", function () { window.print(); });
+
+  document.getElementById("edition-badge").textContent = EDITION === "full" ? "買い切り版: 複数匹対応" : "FREE版: 1匹まで";
+  if (EDITION === "full") {
+    document.getElementById("pro-section").style.display = "none";
+    document.getElementById("save-section").style.display = "block";
+    document.getElementById("tab-label").classList.remove("locked");
+    document.getElementById("tab-sheet").classList.remove("locked");
+  } else {
+    document.getElementById("tab-label").classList.add("locked");
+    document.getElementById("tab-sheet").classList.add("locked");
+  }
+
+  // ============ 保存(買い切り版) ============
+  var SAVE_KEY = "pet_handoff_card_profiles_v1";
+  var saveBtn = document.getElementById("saveBtn");
+  var loadBtn = document.getElementById("loadBtn");
+  if (saveBtn) {
+    saveBtn.addEventListener("click", function () {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(pets));
+      document.getElementById("saveStatus").textContent = "保存しました(" + new Date().toLocaleString() + ")";
+    });
+    loadBtn.addEventListener("click", function () {
+      var raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) { document.getElementById("saveStatus").textContent = "保存されたデータがありません。"; return; }
+      try {
+        var loaded = JSON.parse(raw);
+        if (loaded && loaded.length) {
+          pets = loaded; activePetId = pets[0].id;
+          renderTabs(); renderForm(); renderPreview();
+          document.getElementById("saveStatus").textContent = "読み込みました。";
+        }
+      } catch (e) { document.getElementById("saveStatus").textContent = "読み込みに失敗しました。"; }
+    });
+  }
+
+  renderTabs();
+  renderForm();
+  renderPreview();
+})();
+</script>
+</body>
+</html>
